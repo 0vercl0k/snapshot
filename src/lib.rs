@@ -170,10 +170,7 @@ fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
     let build_name = dbg.read_cstring(addr)?;
     let now = Local::now();
 
-    Ok(format!(
-        "state.{build_name}.{}",
-        now.format("%Y%m%d_%H%M")
-    ))
+    Ok(format!("state.{build_name}.{}", now.format("%Y%m%d_%H%M")))
 }
 
 /// Dump the register state.
