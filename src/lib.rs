@@ -15,7 +15,7 @@ use chrono::Local;
 use debug_client::DebugClient;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
-use windows::core::{IUnknown, HRESULT, PCSTR};
+use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
 use windows::Win32::Foundation::{E_ABORT, S_OK};
 use windows::Win32::System::Diagnostics::Debug::Extensions::{
     DEBUG_CLASS_KERNEL, DEBUG_KERNEL_CONNECTION, DEBUG_KERNEL_EXDI_DRIVER, DEBUG_KERNEL_LOCAL,
@@ -399,9 +399,18 @@ fn snapshot_with_kind_inner(kind: SnapshotKind, dbg: &DebugClient, args: String)
     Ok(())
 }
 
+pub type RawIUnknown = *mut std::ffi::c_void;
+
 /// This is a wrapper function made to be able to display the error in case the
 /// inner function fails.
-fn snapshot_with_kind(kind: SnapshotKind, client: IUnknown, args: PCSTR) -> HRESULT {
+fn snapshot_with_kind(raw_client: RawIUnknown, kind: SnapshotKind, args: PCSTR) -> HRESULT {
+    // We do not own the `raw_client` interface  so we want to created a borrow. If
+    // we don't, the object will get Release()'d when it gets dropped which will
+    // lead to a use-after-free.
+    let Some(client) = (unsafe { IUnknown::from_raw_borrowed(&raw_client) }) else {
+        return E_ABORT;
+    };
+
     let Ok(dbg) = DebugClient::new(client) else {
         return E_ABORT;
     };
@@ -421,18 +430,18 @@ fn snapshot_with_kind(kind: SnapshotKind, client: IUnknown, args: PCSTR) -> HRES
 }
 
 #[no_mangle]
-extern "C" fn snapshot(client: IUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(SnapshotKind::Full, client, args)
+extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
+    snapshot_with_kind(raw_client, SnapshotKind::Full, args)
 }
 
 #[no_mangle]
-extern "C" fn snapshot_full(client: IUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(SnapshotKind::Full, client, args)
+extern "C" fn snapshot_full(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
+    snapshot_with_kind(raw_client, SnapshotKind::Full, args)
 }
 
 #[no_mangle]
-extern "C" fn snapshot_active_kernel(client: IUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(SnapshotKind::ActiveKernel, client, args)
+extern "C" fn snapshot_active_kernel(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
+    snapshot_with_kind(raw_client, SnapshotKind::ActiveKernel, args)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after

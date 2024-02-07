@@ -1,11 +1,17 @@
-# snapshot: A WinDbg extension written in Rust that generates a snapshot for fuzzing
-![Builds](https://github.com/0vercl0k/snapshot/workflows/Builds/badge.svg)
+<div align='center'>
+  <h1><code>snapshot</code></h1>
+  <p>
+    <strong>A Rust WinDbg extension that takes a snapshot of a running VM.</strong>
+  </p>
+  <p>
+    <img src='https://github.com/0vercl0k/snapshot/workflows/Builds/badge.svg'/>
+  </p>
+  <p>
+    <img src='pics/snapshot.gif' />
+  </p>
+</div>
 
-<p align='center'>
-<img src='pics/snapshot.gif'>
-</p>
-
-snapshot is a WinDbg extension written in Rust that dumps both the state of a CPU and the physical memory of a running VM. This snapshot is meant to be used by snapshot-based fuzzers and more particularly by [wtf](https://github.com/0vercl0k/wtf).
+`snapshot` is a WinDbg extension written in Rust that dumps both the state of a CPU (GPRs, relevant MSRs, FPU state, segments, etc.) and the physical memory of a running VM (via a memory crash-dump). This snapshot is meant to be used by snapshot-based fuzzers and more particularly by [wtf](https://github.com/0vercl0k/wtf).
 
 This code base is also meant to show case how to write a WinDbg extension in Rust 🦀.
 

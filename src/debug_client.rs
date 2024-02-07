@@ -69,7 +69,7 @@ pub struct DebugClient {
 }
 
 impl DebugClient {
-    pub fn new(client: IUnknown) -> Result<Self> {
+    pub fn new(client: &IUnknown) -> Result<Self> {
         let control = client.cast()?;
         let registers = client.cast()?;
         let dataspaces = client.cast()?;
