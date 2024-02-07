@@ -11,7 +11,7 @@
   </p>
 </div>
 
-`snapshot` is a WinDbg extension written in Rust that dumps both the state of a CPU (GPRs, relevant MSRs, FPU state, segments, etc.) and the physical memory of a running VM (via a memory crash-dump). This snapshot is meant to be used by snapshot-based fuzzers and more particularly by [wtf](https://github.com/0vercl0k/wtf).
+`snapshot` is a WinDbg extension written in Rust that dumps both the state of a CPU (GPRs, relevant MSRs, FPU state, segments, etc.) and the physical memory of a running VM (via a crash-dump). This snapshot is meant to be used by snapshot-based fuzzers and more particularly by [wtf](https://github.com/0vercl0k/wtf).
 
 This code base is also meant to show case how to write a WinDbg extension in Rust 🦀.
 
