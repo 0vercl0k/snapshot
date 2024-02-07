@@ -1,0 +1,56 @@
+name: Builds
+
+on: [push, pull_request]
+
+jobs:
+  fmt:
+    runs-on: windows-latest
+    name: fmt
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+
+      - name: Set up rust
+        run: rustup default stable
+
+      - name: cargo fmt
+        run: cargo fmt --check
+
+  clippy:
+    name: clippy
+    runs-on: windows-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+
+      - name: Set up rust
+        run: rustup default stable
+
+      - name: cargo clippy
+        env:
+          RUSTFLAGS: "-Dwarnings"
+        run: cargo clippy
+
+  build:
+    runs-on: windows-latest
+    name: build & test
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+
+      - name: Set up rust
+        run: rustup default stable
+
+      - name: cargo test
+        run: cargo test
+
+      - name: cargo build
+        run: cargo build --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot
+          path: |
+            target/release/snapshot.dll
+            target/release/snapshot.pdb
