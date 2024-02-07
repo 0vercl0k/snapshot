@@ -18,9 +18,9 @@ This code base is also meant to show case how to write a WinDbg extension in Rus
 ## Building
 You can build the extension with the below:
 ```text
-c:\> git clone https://github.com/0vercl0k/snapshot.git
-c:\> cd snapshot
-c:\snapshot> cargo build --release
+c:\>git clone https://github.com/0vercl0k/snapshot.git
+c:\>cd snapshot
+c:\snapshot>cargo build --release
 ```
 
 If you would rather grab a pre-built extension, grab one on the [releases](https://github.com/0vercl0k/snapshot/releases) page.

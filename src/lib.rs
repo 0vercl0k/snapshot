@@ -435,11 +435,6 @@ extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
 }
 
 #[no_mangle]
-extern "C" fn snapshot_full(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(raw_client, SnapshotKind::Full, args)
-}
-
-#[no_mangle]
 extern "C" fn snapshot_active_kernel(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
     snapshot_with_kind(raw_client, SnapshotKind::ActiveKernel, args)
 }
