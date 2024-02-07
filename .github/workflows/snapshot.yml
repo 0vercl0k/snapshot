@@ -8,7 +8,7 @@ jobs:
     name: fmt
     steps:
       - name: Checkout 
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up rust
         run: rustup default stable
@@ -21,7 +21,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout 
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up rust
         run: rustup default stable
@@ -36,7 +36,7 @@ jobs:
     name: build & test
     steps:
       - name: Checkout 
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up rust
         run: rustup default stable
@@ -48,7 +48,7 @@ jobs:
         run: cargo build --release
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snapshot
           path: |
