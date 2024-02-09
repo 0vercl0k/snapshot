@@ -12,6 +12,7 @@ use std::{env, mem};
 
 use anyhow::{bail, Result};
 use chrono::Local;
+use clap::{Parser, ValueEnum};
 use debug_client::DebugClient;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
@@ -38,11 +39,6 @@ mod msr {
     pub const GS_BASE: u32 = 0xc000_0101;
     pub const KERNEL_GS_BASE: u32 = 0xc000_0102;
     pub const TSC_AUX: u32 = 0xc000_0103;
-}
-
-enum SnapshotKind {
-    ActiveKernel,
-    Full,
 }
 
 /// Check if an address lives in user-mode.
@@ -291,9 +287,25 @@ fn state(dbg: &DebugClient) -> Result<State> {
     })
 }
 
+#[derive(Clone, Default, ValueEnum)]
+enum SnapshotKind {
+    #[default]
+    ActiveKernel,
+    Full,
+}
+
+#[derive(Parser)]
+#[clap(no_binary_name = true)]
+struct SnapshotArgs {
+    /// The kind of snapshot to take.
+    kind: SnapshotKind,
+    /// The path to save the snapshot to.
+    state_path: Option<PathBuf>,
+}
+
 /// This is where the meat is - this function generates the `state` folder made
 /// of the CPU register as well as the memory dump.
-fn snapshot_with_kind_inner(kind: SnapshotKind, dbg: &DebugClient, args: String) -> Result<()> {
+fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     // Let's make sure this is a live kernel, not a dump, etc..
     let is_live_kernel = matches!(
         dbg.debuggee_type()?,
@@ -319,12 +331,7 @@ fn snapshot_with_kind_inner(kind: SnapshotKind, dbg: &DebugClient, args: String)
     }
 
     // Build the state path.
-    let state_path = if args.is_empty() {
-        env::temp_dir()
-    } else {
-        PathBuf::from(args)
-    };
-
+    let state_path = args.state_path.unwrap_or(env::temp_dir());
     if !state_path.exists() {
         bail!("the directory {:?} doesn't exist", state_path);
     }
@@ -383,7 +390,7 @@ fn snapshot_with_kind_inner(kind: SnapshotKind, dbg: &DebugClient, args: String)
     // Generate the `mem.dmp`.
     dbg.exec(format!(
         ".dump /{} {:?}",
-        match kind {
+        match args.kind {
             // Create a dump with active kernel and user mode memory.
             SnapshotKind::ActiveKernel => "ka",
             // A Complete Memory Dump is the largest kernel-mode dump file. This file includes all
@@ -403,7 +410,11 @@ pub type RawIUnknown = *mut std::ffi::c_void;
 
 /// This is a wrapper function made to be able to display the error in case the
 /// inner function fails.
-fn snapshot_with_kind(raw_client: RawIUnknown, kind: SnapshotKind, args: PCSTR) -> HRESULT {
+fn wrap<A: Parser>(
+    raw_client: RawIUnknown,
+    args: PCSTR,
+    f: impl FnOnce(&DebugClient, A) -> Result<()>,
+) -> HRESULT {
     // We do not own the `raw_client` interface  so we want to created a borrow. If
     // we don't, the object will get Release()'d when it gets dropped which will
     // lead to a use-after-free.
@@ -419,7 +430,17 @@ fn snapshot_with_kind(raw_client: RawIUnknown, kind: SnapshotKind, args: PCSTR) 
         return E_ABORT;
     };
 
-    match snapshot_with_kind_inner(kind, &dbg, args) {
+    // Parse the arguments using `clap`.
+    // TODO: Use a more sophisticated way to split arguments other than just by whitespace.
+    let args = match A::try_parse_from(args.split_whitespace()) {
+        Ok(a) => a,
+        Err(e) => {
+            dbg.logln(format!("{}", e)).unwrap();
+            return E_ABORT;
+        }
+    };
+
+    match f(&dbg, args) {
         Err(e) => {
             dbg.logln(format!("Ran into an error: {e:?}")).unwrap();
 
@@ -431,12 +452,7 @@ fn snapshot_with_kind(raw_client: RawIUnknown, kind: SnapshotKind, args: PCSTR) 
 
 #[no_mangle]
 extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(raw_client, SnapshotKind::Full, args)
-}
-
-#[no_mangle]
-extern "C" fn snapshot_active_kernel(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
-    snapshot_with_kind(raw_client, SnapshotKind::ActiveKernel, args)
+    wrap(raw_client, args, snapshot_inner)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after
