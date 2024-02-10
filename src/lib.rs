@@ -432,7 +432,7 @@ fn wrap<P: Parser>(
     };
 
     // Parse the arguments using `clap`. Currently splitting arguments by
-    // whitespaces. whitespace.
+    // whitespaces.
     let args = match P::try_parse_from(args.split_whitespace()) {
         Ok(a) => a,
         Err(e) => {
