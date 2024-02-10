@@ -61,6 +61,22 @@ pub fn u64_from_debugvalue(v: DEBUG_VALUE) -> Result<u64> {
     Ok(value)
 }
 
+/// Macro to make it nicer to invoke `DebugClient::logln` / `DebugClient::log`
+/// by avoiding to `format!` everytime the arguments.
+#[macro_export]
+macro_rules! dlogln {
+    ($dbg:ident, $($arg:tt)*) => {{
+        $dbg.logln(format!($($arg)*))
+    }};
+}
+
+#[macro_export]
+macro_rules! dlog {
+    ($dbg:ident, $($arg:tt)*) => {{
+        $dbg.log(format!($($arg)*))
+    }};
+}
+
 pub struct DebugClient {
     control: IDebugControl3,
     registers: IDebugRegisters,
@@ -93,11 +109,11 @@ impl DebugClient {
     }
 
     /// Log a message in the debugging window.
+    #[allow(dead_code)]
     pub fn log<Str>(&self, args: Str) -> Result<()>
     where
         Str: Into<Vec<u8>>,
     {
-        self.output(DEBUG_OUTPUT_NORMAL, "[snapshot] ")?;
         self.output(DEBUG_OUTPUT_NORMAL, args)
     }
 
@@ -106,7 +122,8 @@ impl DebugClient {
     where
         Str: Into<Vec<u8>>,
     {
-        self.log(args)?;
+        self.output(DEBUG_OUTPUT_NORMAL, "[snapshot] ")?;
+        self.output(DEBUG_OUTPUT_NORMAL, args)?;
         self.output(DEBUG_OUTPUT_NORMAL, "\n")
     }
 

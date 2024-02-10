@@ -380,18 +380,16 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     fix_number_nodes(&mut json);
 
     // Dump the CPU register into a `regs.json` file.
-    dbg.logln(format!(
-        "Dumping the CPU state into {}..",
-        regs_path.display()
-    ))?;
+    dlogln!(dbg, "Dumping the CPU state into {}..", regs_path.display())?;
 
     let regs_file = File::create(regs_path)?;
     serde_json::to_writer_pretty(regs_file, &json)?;
 
-    dbg.logln(format!(
+    dlogln!(
+        dbg,
         "Dumping the memory state into {}..",
         mem_path.display()
-    ))?;
+    )?;
 
     // Generate the `mem.dmp`.
     dbg.exec(format!(
@@ -407,7 +405,7 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
         mem_path
     ))?;
 
-    dbg.logln("Done!")?;
+    dlogln!(dbg, "Done!")?;
 
     Ok(())
 }
@@ -441,14 +439,14 @@ fn wrap<P: Parser>(
     let args = match P::try_parse_from(args.split_whitespace()) {
         Ok(a) => a,
         Err(e) => {
-            let _ = dbg.logln(format!("{e}"));
+            let _ = dlogln!(dbg, "{e}");
             return E_ABORT;
         }
     };
 
     match callback(&dbg, args) {
         Err(e) => {
-            let _ = dbg.logln(format!("Ran into an error: {e:?}"));
+            let _ = dlogln!(dbg, "Ran into an error: {e:?}");
 
             E_ABORT
         }
