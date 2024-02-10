@@ -333,6 +333,7 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
 
     // Build the state path.
     let state_path = {
+        // Grab the path the user gave or the temp directory.
         let base_path = args.state_path.unwrap_or(env::temp_dir());
         if base_path.exists() {
             // If the user specified a path that exists, then generate a directory name for
@@ -344,7 +345,6 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
         }
     };
 
-    dbg.logln(format!("Creating {}..", state_path.display()))?;
     fs::create_dir(&state_path)?;
 
     // Build the `regs.json` / `mem.dmp` path.
