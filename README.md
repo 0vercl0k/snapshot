@@ -29,6 +29,16 @@ If you would rather grab a pre-built extension, grab one on the [releases](https
 Once you have the extension downloaded / compiled, you can load it in WinDbg with the below:
 ```text
 kd> .load \path\to\snapshot\target\release\snapshot.dll
+
+kd> !snapshot -h
+[snapshot] Usage: snapshot [OPTIONS] [STATE_PATH]
+
+Arguments:
+  [STATE_PATH]  The path to save the snapshot to
+
+Options:
+  -k, --kind <KIND>  The kind of snapshot to take [default: full] [possible values: active-kernel, full]
+  -h, --help         Print help
 ```
 
 Generate a full-kernel snapshot in the `c:\foo` directory with the below:
