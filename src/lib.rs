@@ -298,6 +298,7 @@ enum SnapshotKind {
 #[clap(no_binary_name = true)]
 struct SnapshotArgs {
     /// The kind of snapshot to take.
+    #[clap(default_value = "full", long, short)]
     kind: SnapshotKind,
     /// The path to save the snapshot to.
     state_path: Option<PathBuf>,
@@ -410,10 +411,10 @@ pub type RawIUnknown = *mut std::ffi::c_void;
 
 /// This is a wrapper function made to be able to display the error in case the
 /// inner function fails.
-fn wrap<A: Parser>(
+fn wrap<P: Parser>(
     raw_client: RawIUnknown,
     args: PCSTR,
-    f: impl FnOnce(&DebugClient, A) -> Result<()>,
+    callback: impl FnOnce(&DebugClient, P) -> Result<()>,
 ) -> HRESULT {
     // We do not own the `raw_client` interface  so we want to created a borrow. If
     // we don't, the object will get Release()'d when it gets dropped which will
@@ -430,19 +431,19 @@ fn wrap<A: Parser>(
         return E_ABORT;
     };
 
-    // Parse the arguments using `clap`.
-    // TODO: Use a more sophisticated way to split arguments other than just by whitespace.
-    let args = match A::try_parse_from(args.split_whitespace()) {
+    // Parse the arguments using `clap`. Currently splitting arguments by
+    // whitespaces. whitespace.
+    let args = match P::try_parse_from(args.split_whitespace()) {
         Ok(a) => a,
         Err(e) => {
-            dbg.logln(format!("{}", e)).unwrap();
+            let _ = dbg.logln(format!("{e}"));
             return E_ABORT;
         }
     };
 
-    match f(&dbg, args) {
+    match callback(&dbg, args) {
         Err(e) => {
-            dbg.logln(format!("Ran into an error: {e:?}")).unwrap();
+            let _ = dbg.logln(format!("Ran into an error: {e:?}"));
 
             E_ABORT
         }
