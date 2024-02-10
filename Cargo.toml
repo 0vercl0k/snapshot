@@ -1,6 +1,6 @@
 [package]
 name = "snapshot"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Axel '0vercl0k' Souchet"]
 
@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = { version = "1.0.79" }
 chrono = "0.4.33"
+clap = { version = "4.5.0", features = ["derive"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = { version = "1.0.111"}
 windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_System", "Win32_System_Diagnostics", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_Debug_Extensions", "Win32_System_SystemInformation" ] }
