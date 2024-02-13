@@ -5,17 +5,19 @@ use std::ffi::CString;
 use anyhow::{bail, Context, Result};
 use windows::core::{ComInterface, IUnknown};
 use windows::Win32::System::Diagnostics::Debug::Extensions::{
-    IDebugControl3, IDebugDataSpaces4, IDebugRegisters, IDebugSymbols, DEBUG_EXECUTE_DEFAULT,
-    DEBUG_OUTCTL_ALL_CLIENTS, DEBUG_OUTPUT_NORMAL, DEBUG_VALUE, DEBUG_VALUE_FLOAT128,
-    DEBUG_VALUE_FLOAT32, DEBUG_VALUE_FLOAT64, DEBUG_VALUE_FLOAT80, DEBUG_VALUE_INT16,
-    DEBUG_VALUE_INT32, DEBUG_VALUE_INT64, DEBUG_VALUE_INT8, DEBUG_VALUE_VECTOR128,
-    DEBUG_VALUE_VECTOR64,
+    IDebugControl3, IDebugDataSpaces4, IDebugRegisters, IDebugSymbols, DEBUG_ANY_ID,
+    DEBUG_BREAKPOINT_CODE, DEBUG_BREAKPOINT_DATA, DEBUG_EXECUTE_DEFAULT, DEBUG_OUTCTL_ALL_CLIENTS,
+    DEBUG_OUTPUT_NORMAL, DEBUG_VALUE, DEBUG_VALUE_FLOAT128, DEBUG_VALUE_FLOAT32,
+    DEBUG_VALUE_FLOAT64, DEBUG_VALUE_FLOAT80, DEBUG_VALUE_INT16, DEBUG_VALUE_INT32,
+    DEBUG_VALUE_INT64, DEBUG_VALUE_INT8, DEBUG_VALUE_VECTOR128, DEBUG_VALUE_VECTOR64,
 };
 use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE;
 
 use crate::as_pcstr::AsPCSTR;
 use crate::bits::Bits;
 use crate::state::Seg;
+
+use super::breakpoint::{BreakpointType, DebugBreakpoint};
 
 /// Extract `u128` off a `DEBUG_VALUE`.
 pub fn u128_from_debugvalue(v: DEBUG_VALUE) -> Result<u128> {
@@ -141,6 +143,25 @@ impl DebugClient {
             )
         }
         .context(format!("Execute({:?}) failed", cstr))
+    }
+
+    /// Create a new breakpoint.
+    pub fn add_breakpoint(
+        &self,
+        ty: BreakpointType,
+        desired_id: Option<u32>,
+    ) -> Result<DebugBreakpoint> {
+        let bp = unsafe {
+            self.control.AddBreakpoint(
+                match ty {
+                    BreakpointType::Code => DEBUG_BREAKPOINT_CODE,
+                    BreakpointType::Data => DEBUG_BREAKPOINT_DATA,
+                },
+                desired_id.unwrap_or(DEBUG_ANY_ID),
+            )
+        }?;
+
+        Ok(DebugBreakpoint::new(bp))
     }
 
     /// Get the register indices from names.

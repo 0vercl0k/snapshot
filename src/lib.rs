@@ -2,7 +2,7 @@
 // Special cheers to @erynian for the inspiration 🙏
 mod as_pcstr;
 mod bits;
-mod debug_client;
+mod dbgeng;
 mod state;
 
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::{env, mem};
 use anyhow::{bail, Result};
 use chrono::Local;
 use clap::{Parser, ValueEnum};
-use debug_client::DebugClient;
+use dbgeng::client::DebugClient;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
 use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
