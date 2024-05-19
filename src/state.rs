@@ -1,9 +1,8 @@
 // Axel '0vercl0k' Souchet - January 21 2024
 use std::collections::HashMap;
 
+use dbgeng::client::Seg;
 use serde::Serialize;
-
-use crate::bits::Bits;
 
 #[derive(Default, Debug, Serialize)]
 pub struct Zmm([u64; 8]);
@@ -33,37 +32,6 @@ impl From<Vec<u64>> for GlobalSeg {
         Self {
             base: value[0],
             limit: value[1] as u16,
-        }
-    }
-}
-
-#[derive(Default, Debug, Serialize)]
-pub struct Seg {
-    pub present: bool,
-    pub selector: u16,
-    pub base: u64,
-    pub limit: u32,
-    pub attr: u16,
-}
-
-impl Seg {
-    pub fn from_descriptor(selector: u64, value: u128) -> Self {
-        let limit = (value.bits(0..=15) | (value.bits(48..=51) << 16)) as u32;
-        let mut base = value.bits(16..=39) | (value.bits(56..=63) << 24);
-        let present = value.bit(47) == 1;
-        let attr = value.bits(40..=55) as u16;
-        let selector = selector as u16;
-        let non_system = value.bit(44);
-        if non_system == 0 {
-            base |= value.bits(64..=95) << 32;
-        }
-
-        Seg {
-            present,
-            selector,
-            base: base as u64,
-            limit,
-            attr,
         }
     }
 }
