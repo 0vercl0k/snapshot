@@ -1,8 +1,5 @@
 // Axel '0vercl0k' Souchet - January 15 2024
 // Special cheers to @erynian for the inspiration 🙏
-mod as_pcstr;
-mod bits;
-mod debug_client;
 mod state;
 
 use std::collections::HashMap;
@@ -13,7 +10,8 @@ use std::{env, mem};
 use anyhow::{bail, Result};
 use chrono::Local;
 use clap::{Parser, ValueEnum};
-use debug_client::DebugClient;
+use dbgeng::client::DebugClient;
+use dbgeng::dlogln;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
 use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
