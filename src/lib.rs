@@ -7,19 +7,19 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::{env, mem};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::Local;
 use clap::{Parser, ValueEnum};
 use dbgeng::client::DebugClient;
 use dbgeng::dlogln;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
-use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
 use windows::Win32::Foundation::{E_ABORT, S_OK};
 use windows::Win32::System::Diagnostics::Debug::Extensions::{
     DEBUG_CLASS_KERNEL, DEBUG_KERNEL_CONNECTION, DEBUG_KERNEL_EXDI_DRIVER, DEBUG_KERNEL_LOCAL,
 };
 use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use windows::core::{HRESULT, IUnknown, Interface, PCSTR};
 
 mod msr {
     pub const TSC: u32 = 0x0000_0010;
@@ -37,6 +37,13 @@ mod msr {
     pub const GS_BASE: u32 = 0xc000_0101;
     pub const KERNEL_GS_BASE: u32 = 0xc000_0102;
     pub const TSC_AUX: u32 = 0xc000_0103;
+    pub const U_CET: u32 = 0x0000_06a0;
+    pub const S_CET: u32 = 0x0000_06a2;
+    pub const PL0_SSP: u32 = 0x0000_06a4;
+    pub const PL1_SSP: u32 = 0x0000_06a5;
+    pub const PL2_SSP: u32 = 0x0000_06a6;
+    pub const PL3_SSP: u32 = 0x0000_06a7;
+    pub const INTERRUPT_SSP_TABLE_ADDR: u32 = 0x0000_06a8;
 }
 
 /// Check if an address lives in user-mode.
@@ -228,6 +235,13 @@ fn state(dbg: &DebugClient) -> Result<State> {
         ("sfmask", msr::SFMASK),
         ("kernel_gs_base", msr::KERNEL_GS_BASE),
         ("tsc_aux", msr::TSC_AUX),
+        ("cet_control_u", msr::U_CET),
+        ("cet_control_s", msr::S_CET),
+        ("pl0_ssp", msr::PL0_SSP),
+        ("pl1_ssp", msr::PL1_SSP),
+        ("pl2_ssp", msr::PL2_SSP),
+        ("pl3_ssp", msr::PL3_SSP),
+        ("interrupt_ssp_table", msr::INTERRUPT_SSP_TABLE_ADDR),
     ])
     .into_iter()
     .map(|(name, msr)| Ok((name, dbg.msr(msr)?)))
@@ -452,19 +466,19 @@ fn wrap<P: Parser>(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
     wrap(raw_client, args, snapshot_inner)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after
 /// loading a DbgEng extension DLL. https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dbgeng/nc-dbgeng-pdebug_extension_initialize
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionInitialize(_version: *mut u32, _flags: *mut u32) -> HRESULT {
     S_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionUninitialize() {}
 
 #[cfg(test)]
