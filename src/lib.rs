@@ -168,7 +168,7 @@ fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
 }
 
 /// Dump the register state.
-fn state(dbg: &DebugClient) -> Result<State> {
+fn state(dbg: &DebugClient) -> Result<State<'_>> {
     let mut regs = dbg.regs64_dict(&[
         "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rip", "rsp", "rbp", "r8", "r9", "r10", "r11",
         "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "xcr0",
@@ -452,19 +452,19 @@ fn wrap<P: Parser>(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
     wrap(raw_client, args, snapshot_inner)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after
 /// loading a DbgEng extension DLL. https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dbgeng/nc-dbgeng-pdebug_extension_initialize
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionInitialize(_version: *mut u32, _flags: *mut u32) -> HRESULT {
     S_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionUninitialize() {}
 
 #[cfg(test)]
