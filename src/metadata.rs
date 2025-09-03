@@ -69,7 +69,7 @@ pub struct DllInfo {
 
 impl DllInfo {
     pub fn new(module: HMODULE) -> Result<Self> {
-        /// Get the full path of where the module is loaded from on disk.
+        // Get the full path of where the module is loaded from on disk.
         let mut buffer = vec![0u8; MAX_PATH as usize];
         let len = unsafe { GetModuleFileNameA(module, &mut buffer) };
         if len == 0 {
