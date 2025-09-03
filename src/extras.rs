@@ -1,6 +1,7 @@
 // Axel '0vercl0k' Souchet - September 1 2025
 
 use std::{
+    collections::HashMap,
     ffi::{CStr, CString},
     fmt::Display,
     mem,
@@ -63,8 +64,8 @@ pub fn get_module_handle(name: &str) -> Option<HMODULE> {
 
 #[derive(Debug, Serialize)]
 pub struct DllInfo {
-    path: PathBuf,
-    version: ProductVersion,
+    pub path: PathBuf,
+    pub version: ProductVersion,
 }
 
 impl DllInfo {
@@ -132,6 +133,6 @@ impl DllInfo {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Metadata {
-    pub debug_dlls: Vec<DllInfo>,
+pub struct Extras {
+    pub debug_dlls: HashMap<PathBuf, ProductVersion>,
 }

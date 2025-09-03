@@ -1,6 +1,6 @@
 // Axel '0vercl0k' Souchet - January 15 2024
 // Special cheers to @erynian for the inspiration 🙏
-mod metadata;
+mod extras;
 mod state;
 
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ use windows::Win32::System::Diagnostics::Debug::Extensions::{
 use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
 use windows::core::{HRESULT, IUnknown, Interface, PCSTR};
 
-use crate::metadata::{DllInfo, Metadata, get_module_handle};
+use crate::extras::{DllInfo, Extras, get_module_handle};
 
 mod msr {
     pub const TSC: u32 = 0x0000_0010;
@@ -288,8 +288,8 @@ fn state(dbg: &DebugClient) -> Result<State<'_>> {
     })
 }
 
-/// Create the [`Metadata`] structure that'll get dumped in the `metadata.json` file.
-fn metadata() -> Result<Metadata> {
+/// Create the [`Extras`] structure that'll get dumped in the `extras.json` file.
+fn extras() -> Result<Extras> {
     const DLL_NAMES: [&str; 5] = [
         "dbgeng.dll",
         "dbgcore.dll",
@@ -298,17 +298,18 @@ fn metadata() -> Result<Metadata> {
         "msdia140.dll",
     ];
 
-    let mut debug_dlls = Vec::with_capacity(DLL_NAMES.len());
+    let mut debug_dlls = HashMap::new();
     for dll in DLL_NAMES {
         let module = match get_module_handle(dll) {
             Some(m) => m,
             None => continue,
         };
 
-        debug_dlls.push(DllInfo::new(module)?);
+        let info = DllInfo::new(module)?;
+        debug_dlls.entry(info.path).insert_entry(info.version);
     }
 
-    Ok(Metadata { debug_dlls })
+    Ok(Extras { debug_dlls })
 }
 
 #[derive(Clone, Default, ValueEnum)]
@@ -374,7 +375,7 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     // Build the `regs.json` / `mem.dmp` path.
     let regs_path = state_path.join("regs.json");
     let mem_path = state_path.join("mem.dmp");
-    let metadata_path = state_path.join("metadata.json");
+    let extras_path = state_path.join("extras.json");
 
     if regs_path.exists() {
         bail!("{:?} already exists", regs_path);
@@ -384,8 +385,8 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
         bail!("{:?} already exists", mem_path);
     }
 
-    if metadata_path.exists() {
-        bail!("{:?} already exists", metadata_path);
+    if extras_path.exists() {
+        bail!("{:?} already exists", extras_path);
     }
 
     // All right, let's get to work now. First, grab the CPU state.
@@ -413,11 +414,11 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     let regs_file = File::create(regs_path)?;
     serde_json::to_writer_pretty(regs_file, &json)?;
 
-    // Dump the metadata into the `metadata.json` file.
-    dlogln!(dbg, "Dumping the metadata {}..", metadata_path.display())?;
-    let metadata = metadata()?;
-    let metadata_file = File::create(metadata_path)?;
-    serde_json::to_writer_pretty(metadata_file, &metadata)?;
+    // Dump the extras into the `extras.json` file.
+    dlogln!(dbg, "Dumping the extras {}..", extras_path.display())?;
+    let extras = extras()?;
+    let extras_file = File::create(extras_path)?;
+    serde_json::to_writer_pretty(extras_file, &extras)?;
 
     // Generate the `mem.dmp`.
     dlogln!(
