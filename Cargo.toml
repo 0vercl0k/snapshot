@@ -15,4 +15,4 @@ clap = { version = "4.5.0", features = ["derive"] }
 dbgeng = { version = "0.3", features = ["serde"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = { version = "1.0.111"}
-windows = { version = "0.58", features = ["Win32_Foundation", "Win32_System", "Win32_System_Diagnostics", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_Debug_Extensions", "Win32_System_SystemInformation" ] }
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_System", "Win32_System_Diagnostics", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_Debug_Extensions", "Win32_System_SystemInformation", "Win32_System_LibraryLoader", "Win32_Storage_FileSystem" ] }
