@@ -1,5 +1,6 @@
 // Axel '0vercl0k' Souchet - January 15 2024
 // Special cheers to @erynian for the inspiration 🙏
+mod extras;
 mod state;
 
 use std::collections::HashMap;
@@ -7,19 +8,21 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::{env, mem};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::Local;
 use clap::{Parser, ValueEnum};
 use dbgeng::client::DebugClient;
 use dbgeng::dlogln;
 use serde_json::Value;
 use state::{Float80, GlobalSeg, State, Zmm};
-use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
 use windows::Win32::Foundation::{E_ABORT, S_OK};
 use windows::Win32::System::Diagnostics::Debug::Extensions::{
     DEBUG_CLASS_KERNEL, DEBUG_KERNEL_CONNECTION, DEBUG_KERNEL_EXDI_DRIVER, DEBUG_KERNEL_LOCAL,
 };
 use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use windows::core::{HRESULT, IUnknown, Interface, PCSTR};
+
+use crate::extras::{DllInfo, Extras, get_module_handle};
 
 mod msr {
     pub const TSC: u32 = 0x0000_0010;
@@ -167,8 +170,8 @@ fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
     Ok(format!("state.{build_name}.{}", now.format("%Y%m%d_%H%M")))
 }
 
-/// Dump the register state.
-fn state(dbg: &DebugClient) -> Result<State> {
+/// Dump the register [`State`].
+fn state(dbg: &DebugClient) -> Result<State<'_>> {
     let mut regs = dbg.regs64_dict(&[
         "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rip", "rsp", "rbp", "r8", "r9", "r10", "r11",
         "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "xcr0",
@@ -285,6 +288,30 @@ fn state(dbg: &DebugClient) -> Result<State> {
     })
 }
 
+/// Create the [`Extras`] structure that'll get dumped in the `extras.json` file.
+fn extras() -> Result<Extras> {
+    const DLL_NAMES: [&str; 5] = [
+        "dbgeng.dll",
+        "dbgcore.dll",
+        "dbghelp.dll",
+        "symsrv.dll",
+        "msdia140.dll",
+    ];
+
+    let mut debug_dlls = HashMap::new();
+    for dll_name in DLL_NAMES {
+        let module = match get_module_handle(dll_name) {
+            Some(m) => m,
+            None => continue,
+        };
+
+        let info = DllInfo::new(module)?;
+        debug_dlls.entry(dll_name.to_string()).insert_entry(info);
+    }
+
+    Ok(Extras { debug_dlls })
+}
+
 #[derive(Clone, Default, ValueEnum)]
 enum SnapshotKind {
     #[default]
@@ -332,7 +359,7 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     // Build the state path.
     let state_path = {
         // Grab the path the user gave or the temp directory.
-        let base_path = args.state_path.unwrap_or(env::temp_dir());
+        let base_path = args.state_path.unwrap_or_else(env::temp_dir);
         if base_path.exists() {
             // If the user specified a path that exists, then generate a directory name for
             // them.
@@ -348,6 +375,7 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
     // Build the `regs.json` / `mem.dmp` path.
     let regs_path = state_path.join("regs.json");
     let mem_path = state_path.join("mem.dmp");
+    let extras_path = state_path.join("extras.json");
 
     if regs_path.exists() {
         bail!("{:?} already exists", regs_path);
@@ -355,6 +383,10 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
 
     if mem_path.exists() {
         bail!("{:?} already exists", mem_path);
+    }
+
+    if extras_path.exists() {
+        bail!("{:?} already exists", extras_path);
     }
 
     // All right, let's get to work now. First, grab the CPU state.
@@ -377,19 +409,24 @@ fn snapshot_inner(dbg: &DebugClient, args: SnapshotArgs) -> Result<()> {
 
     fix_number_nodes(&mut json);
 
-    // Dump the CPU register into a `regs.json` file.
+    // Dump the CPU register into the `regs.json` file.
     dlogln!(dbg, "Dumping the CPU state into {}..", regs_path.display())?;
-
     let regs_file = File::create(regs_path)?;
     serde_json::to_writer_pretty(regs_file, &json)?;
 
+    // Dump the extras into the `extras.json` file.
+    dlogln!(dbg, "Dumping the extras {}..", extras_path.display())?;
+    let extras = extras()?;
+    let extras_file = File::create(extras_path)?;
+    serde_json::to_writer_pretty(extras_file, &extras)?;
+
+    // Generate the `mem.dmp`.
     dlogln!(
         dbg,
         "Dumping the memory state into {}..",
         mem_path.display()
     )?;
 
-    // Generate the `mem.dmp`.
     dbg.exec(format!(
         ".dump /{} {:?}",
         match args.kind {
@@ -452,19 +489,19 @@ fn wrap<P: Parser>(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
     wrap(raw_client, args, snapshot_inner)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after
 /// loading a DbgEng extension DLL. https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dbgeng/nc-dbgeng-pdebug_extension_initialize
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionInitialize(_version: *mut u32, _flags: *mut u32) -> HRESULT {
     S_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionUninitialize() {}
 
 #[cfg(test)]
