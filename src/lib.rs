@@ -299,14 +299,14 @@ fn extras() -> Result<Extras> {
     ];
 
     let mut debug_dlls = HashMap::new();
-    for dll in DLL_NAMES {
-        let module = match get_module_handle(dll) {
+    for dll_name in DLL_NAMES {
+        let module = match get_module_handle(dll_name) {
             Some(m) => m,
             None => continue,
         };
 
         let info = DllInfo::new(module)?;
-        debug_dlls.entry(info.path).insert_entry(info.version);
+        debug_dlls.entry(dll_name.to_string()).insert_entry(info);
     }
 
     Ok(Extras { debug_dlls })

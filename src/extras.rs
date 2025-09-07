@@ -1,5 +1,4 @@
 // Axel '0vercl0k' Souchet - September 1 2025
-
 use std::{
     collections::HashMap,
     ffi::{CStr, CString},
@@ -134,5 +133,5 @@ impl DllInfo {
 
 #[derive(Debug, Serialize)]
 pub struct Extras {
-    pub debug_dlls: HashMap<PathBuf, ProductVersion>,
+    pub debug_dlls: HashMap<String, DllInfo>,
 }
