@@ -12,14 +12,14 @@ use chrono::Local;
 use clap::{Parser, ValueEnum};
 use dbgeng::client::DebugClient;
 use dbgeng::dlogln;
-use serde_json::Value;
-use state::{Float80, GlobalSeg, State, Zmm};
-use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
-use windows::Win32::Foundation::{E_ABORT, S_OK};
-use windows::Win32::System::Diagnostics::Debug::Extensions::{
+use dbgeng::windows::core::{IUnknown, Interface, HRESULT, PCSTR};
+use dbgeng::windows::Win32::Foundation::{E_ABORT, S_OK};
+use dbgeng::windows::Win32::System::Diagnostics::Debug::Extensions::{
     DEBUG_CLASS_KERNEL, DEBUG_KERNEL_CONNECTION, DEBUG_KERNEL_EXDI_DRIVER, DEBUG_KERNEL_LOCAL,
 };
-use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use dbgeng::windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use serde_json::Value;
+use state::{Float80, GlobalSeg, State, Zmm};
 
 mod msr {
     pub const TSC: u32 = 0x0000_0010;
