@@ -160,15 +160,15 @@ fn fptw(windbg_fptw: u64) -> u64 {
 
 /// Generate a directory name where we'll store the CPU state / memory dump.
 fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
-    let addr = dbg.get_address_by_name("nt!NtBuildLabEx")?;
-    let build_name = dbg.read_cstring(addr)?;
+    let addr = dbg.get_address_by_name("nt!NtBuildLabEx").unwrap_or(0);
+    let build_name = dbg.read_cstring(addr).unwrap_or("UnknownBuild".to_string());
     let now = Local::now();
 
     Ok(format!("state.{build_name}.{}", now.format("%Y%m%d_%H%M")))
 }
 
 /// Dump the register state.
-fn state(dbg: &DebugClient) -> Result<State> {
+fn state(dbg: &DebugClient) -> Result<State<'_>> {
     let mut regs = dbg.regs64_dict(&[
         "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rip", "rsp", "rbp", "r8", "r9", "r10", "r11",
         "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "xcr0",
