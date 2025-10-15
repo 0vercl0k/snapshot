@@ -176,9 +176,7 @@ fn state(dbg: &DebugClient) -> Result<State<'_>> {
         "dr1", "dr2", "dr3", "dr6", "dr7", "mxcsr",
     ])?;
 
-    let xcr0 = if let Some(cr4) = regs.get("cr4")
-        && (cr4 & CR4_OSXSAVE) != 0
-    {
+    let xcr0 = if (regs.get("cr4").unwrap() & CR4_OSXSAVE) != 0 {
         dbg.reg64("xcr0").unwrap()
     } else {
         0
