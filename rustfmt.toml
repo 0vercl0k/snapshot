@@ -1,0 +1,13 @@
+reorder_modules = true
+use_field_init_shorthand = true
+
+unstable_features = true
+indent_style = "Block"
+reorder_imports = true
+imports_granularity = "Module"
+normalize_comments = true
+normalize_doc_attributes = true
+overflow_delimited_expr = true
+reorder_impl_items = true
+group_imports = "StdExternalCrate"
+wrap_comments = true
