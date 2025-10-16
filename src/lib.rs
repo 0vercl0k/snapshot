@@ -7,19 +7,19 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::{env, mem};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::Local;
 use clap::{Parser, ValueEnum};
 use dbgeng::client::DebugClient;
 use dbgeng::dlogln;
-use serde_json::Value;
-use state::{Float80, GlobalSeg, State, Zmm};
-use windows::core::{IUnknown, Interface, HRESULT, PCSTR};
-use windows::Win32::Foundation::{E_ABORT, S_OK};
-use windows::Win32::System::Diagnostics::Debug::Extensions::{
+use dbgeng::windows::Win32::Foundation::{E_ABORT, S_OK};
+use dbgeng::windows::Win32::System::Diagnostics::Debug::Extensions::{
     DEBUG_CLASS_KERNEL, DEBUG_KERNEL_CONNECTION, DEBUG_KERNEL_EXDI_DRIVER, DEBUG_KERNEL_LOCAL,
 };
-use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use dbgeng::windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE_AMD64;
+use dbgeng::windows::core::{HRESULT, IUnknown, Interface, PCSTR};
+use serde_json::Value;
+use state::{Float80, GlobalSeg, State, Zmm};
 
 mod msr {
     pub const TSC: u32 = 0x0000_0010;
@@ -160,20 +160,32 @@ fn fptw(windbg_fptw: u64) -> u64 {
 
 /// Generate a directory name where we'll store the CPU state / memory dump.
 fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
-    let addr = dbg.get_address_by_name("nt!NtBuildLabEx")?;
-    let build_name = dbg.read_cstring(addr)?;
+    let addr = dbg.get_address_by_name("nt!NtBuildLabEx").unwrap_or(0);
+    let build_name = dbg.read_cstring(addr).unwrap_or("UnknownBuild".to_string());
     let now = Local::now();
 
     Ok(format!("state.{build_name}.{}", now.format("%Y%m%d_%H%M")))
 }
 
 /// Dump the register state.
-fn state(dbg: &DebugClient) -> Result<State> {
+fn state(dbg: &DebugClient) -> Result<State<'_>> {
+    const CR4_OSXSAVE: u64 = 1 << 18;
     let mut regs = dbg.regs64_dict(&[
         "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rip", "rsp", "rbp", "r8", "r9", "r10", "r11",
-        "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "xcr0",
-        "dr0", "dr1", "dr2", "dr3", "dr6", "dr7", "mxcsr",
+        "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "dr0",
+        "dr1", "dr2", "dr3", "dr6", "dr7", "mxcsr",
     ])?;
+
+    let xcr0 = if (regs.get("cr4").unwrap() & CR4_OSXSAVE) != 0 {
+        dbg.reg64("xcr0").unwrap()
+    } else {
+        0
+    };
+
+    assert!(
+        regs.insert("xcr0", xcr0).is_none(),
+        "xcr0 shouldn't be in regs"
+    );
 
     assert!(
         regs.insert("rflags", dbg.reg64("efl")?).is_none(),
@@ -452,19 +464,19 @@ fn wrap<P: Parser>(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn snapshot(raw_client: RawIUnknown, args: PCSTR) -> HRESULT {
     wrap(raw_client, args, snapshot_inner)
 }
 
 /// The DebugExtensionInitialize callback function is called by the engine after
 /// loading a DbgEng extension DLL. https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/dbgeng/nc-dbgeng-pdebug_extension_initialize
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionInitialize(_version: *mut u32, _flags: *mut u32) -> HRESULT {
     S_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn DebugExtensionUninitialize() {}
 
 #[cfg(test)]
