@@ -109,7 +109,6 @@ fn is_usermode_addr(addr: u64) -> bool {
 /// static_assert(sizeof(Fnstenv_t) == 28, "");
 ///
 /// int main() {
-///
 ///     Fnstenv_t f = {};
 ///     for (uint64_t Idx = 0; Idx < 8; Idx++) {
 ///         _fstenv(&f);
@@ -158,6 +157,14 @@ fn fptw(windbg_fptw: u64) -> u64 {
     out
 }
 
+/// Parse the IRQL level value from the output of `!irql`.
+fn parse_irql(s: &str) -> Option<u64> {
+    // Example: `Debugger saved IRQL for processor 0x0 -- 0 (LOW_LEVEL)`
+    s.split_once(" -- ")
+        .and_then(|(_, rest)| rest.split_whitespace().next())
+        .and_then(|level_str| level_str.parse::<u64>().ok())
+}
+
 /// Generate a directory name where we'll store the CPU state / memory dump.
 fn gen_state_folder_name(dbg: &DebugClient) -> Result<String> {
     let addr = dbg.get_address_by_name("nt!NtBuildLabEx").unwrap_or(0);
@@ -172,9 +179,30 @@ fn state(dbg: &DebugClient) -> Result<State<'_>> {
     const CR4_OSXSAVE: u64 = 1 << 18;
     let mut regs = dbg.regs64_dict(&[
         "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rip", "rsp", "rbp", "r8", "r9", "r10", "r11",
-        "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "cr8", "dr0",
-        "dr1", "dr2", "dr3", "dr6", "dr7", "mxcsr",
+        "r12", "r13", "r14", "r15", "fpcw", "fpsw", "cr0", "cr2", "cr3", "cr4", "dr0", "dr1",
+        "dr2", "dr3", "dr6", "dr7", "mxcsr",
     ])?;
+
+    // When a breakpoint is hit while windbg is attached, it seems like it might
+    // change the IRQL which leaves `cr8` with a 'bogus' value. That value isn't
+    // what it would be if your code would be executed outside of windbg / without a
+    // breakpoint, so windbg saves the 'real' value and is the value that `!irql`
+    // gives you back.
+    let cr8_s = dbg.exec_with_capture("!irql")?;
+    regs.insert(
+        "cr8",
+        if let Some(cr8) = parse_irql(&cr8_s) {
+            cr8
+        } else {
+            dlogln!(
+                dbg,
+                "failed to parse irql from `!irql` (\"{}\") so setting cr8 to 0",
+                cr8_s.trim()
+            )?;
+
+            0
+        },
+    );
 
     let xcr0 = if (regs.get("cr4").unwrap() & CR4_OSXSAVE) != 0 {
         dbg.reg64("xcr0").unwrap()
@@ -266,13 +294,6 @@ fn state(dbg: &DebugClient) -> Result<State<'_>> {
         let kernel_gs_base = msrs.get_mut("kernel_gs_base").unwrap();
         mem::swap(&mut gs_base, kernel_gs_base);
         segs.get_mut("gs").unwrap().base = gs_base;
-    }
-
-    // Fix up @cr8 if it isn't zero and the debugger is currently stopped in
-    // user-mode.
-    let cr8 = regs.get_mut("cr8").unwrap();
-    if is_usermode_addr(rip) && *cr8 != 0 {
-        *cr8 = 0;
     }
 
     let gsegs = HashMap::from([("gdtr", gdt), ("idtr", idt)]);
@@ -483,6 +504,8 @@ extern "C" fn DebugExtensionUninitialize() {}
 mod tests {
     use std::collections::BTreeMap;
 
+    use crate::parse_irql;
+
     #[test]
     fn fptw() {
         let expected = BTreeMap::from([
@@ -505,5 +528,21 @@ mod tests {
                 windbg, fptw, expected_fptw
             );
         }
+    }
+
+    #[test]
+    fn irql() {
+        assert_eq!(
+            parse_irql("Debugger saved IRQL for processor 0x0 -- 0 (LOW_LEVEL)"),
+            Some(0)
+        );
+        assert_eq!(
+            parse_irql("Debugger saved IRQL for processor 0x0 -- 2 (DISPATCH_LEVEL)"),
+            Some(2)
+        );
+        assert_eq!(
+            parse_irql("Debugger saved IRQL for processor 0x0 -- bleh (LOW_LEVEL)"),
+            None
+        );
     }
 }
