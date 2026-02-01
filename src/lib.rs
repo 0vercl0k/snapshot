@@ -196,7 +196,7 @@ fn state(dbg: &DebugClient) -> Result<State<'_>> {
         } else {
             dlogln!(
                 dbg,
-                "failed to parse irql from `!irql` (\"{}\") so setting cr8 to 0",
+                "Failed to parse irql from `!irql` (\"{}\") so setting cr8 to 0",
                 cr8_s.trim()
             )?;
 
