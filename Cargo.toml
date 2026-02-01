@@ -12,6 +12,6 @@ crate-type = ["cdylib"]
 anyhow = { version = "1.0" }
 chrono = "0.4.42"
 clap = { version = "4.5.0", features = ["derive"] }
-dbgeng = { version = "0.4", features = ["serde"] }
+dbgeng = { version = "0.5", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.145"}
