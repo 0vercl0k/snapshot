@@ -1,6 +1,6 @@
 [package]
 name = "snapshot"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 authors = ["Axel '0vercl0k' Souchet"]
 
@@ -10,8 +10,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = { version = "1.0" }
-chrono = "0.4.42"
-clap = { version = "4.5.0", features = ["derive"] }
+chrono = "0.4"
+clap = { version = "4.5", features = ["derive"] }
 dbgeng = { version = "0.5", features = ["serde"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.145"}
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1"}
